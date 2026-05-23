@@ -1,0 +1,15 @@
+# Personal progress backups exported by the tracker
+coae-tracker-backup.json
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~

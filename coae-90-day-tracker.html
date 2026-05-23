@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTB COAE — 90-Day Study Tracker</title>
+<style>
+  :root{
+    --bg:#0d1320; --bg2:#141d2e; --card:#1a2435; --card2:#202c42;
+    --line:#2a3950; --txt:#e6edf5; --muted:#8da2bd; --faint:#5f7491;
+    --green:#9fef00; --green-dim:#7bb800; --teal:#2ee6c8; --blue:#6ea8ff;
+    --amber:#ffb454; --purple:#c98bff; --red:#ff6b6b; --gold:#ffd84d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--txt);line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--teal);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px 18px 80px}
+
+  /* Header */
+  header{border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:22px}
+  .kicker{color:var(--green);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+  h1{font-size:27px;font-weight:800;margin:4px 0 6px;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:14px}
+  .settings{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:14px}
+  .settings label{font-size:13px;color:var(--muted)}
+  input[type=date]{
+    background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    padding:6px 9px;border-radius:7px;font-size:13px;font-family:inherit;
+  }
+  .btn{
+    background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    padding:7px 13px;border-radius:7px;font-size:13px;cursor:pointer;font-family:inherit;
+    transition:.15s;
+  }
+  .btn:hover{border-color:var(--green);color:var(--green)}
+  .btn.primary{background:var(--green);color:#0d1320;border-color:var(--green);font-weight:700}
+  .btn.primary:hover{background:var(--green-dim);color:#0d1320}
+
+  /* Dashboard */
+  .dash{display:grid;grid-template-columns:auto 1fr;gap:22px;
+    background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:22px}
+  .ring-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+  .ring{
+    width:140px;height:140px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:conic-gradient(var(--green) 0deg,var(--card) 0deg);
+  }
+  .ring-inner{
+    width:108px;height:108px;border-radius:50%;background:var(--bg2);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+  }
+  .ring-pct{font-size:30px;font-weight:800;color:var(--green);line-height:1}
+  .ring-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+  .ring-cap{font-size:12px;color:var(--faint)}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .stat .num{font-size:22px;font-weight:800;line-height:1.1}
+  .stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+  .stat .meta{font-size:11px;color:var(--faint);margin-top:2px}
+  .pace{grid-column:1/-1;font-size:13px;padding:9px 12px;border-radius:8px;border:1px dashed var(--line)}
+  .pace.ahead{color:var(--green);border-color:var(--green-dim)}
+  .pace.behind{color:var(--amber);border-color:var(--amber)}
+  .pace.on{color:var(--teal);border-color:var(--teal)}
+
+  .chart-block{grid-column:1/-1;margin-top:4px}
+  .chart-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+  .weekchart{display:flex;gap:6px;align-items:flex-end;height:90px}
+  .wbar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%}
+  .wbar-track{flex:1;width:100%;display:flex;align-items:flex-end;background:var(--card);border-radius:4px 4px 0 0;overflow:hidden}
+  .wbar-fill{width:100%;background:linear-gradient(var(--green),var(--green-dim));border-radius:4px 4px 0 0;transition:height .3s}
+  .wbar-lbl{font-size:9px;color:var(--faint)}
+  .phases{display:flex;flex-direction:column;gap:7px;margin-top:14px}
+  .phase-row{display:grid;grid-template-columns:170px 1fr 42px;gap:10px;align-items:center;font-size:12px}
+  .phase-name{color:var(--muted)}
+  .phase-track{height:9px;background:var(--card);border-radius:5px;overflow:hidden}
+  .phase-fill{height:100%;border-radius:5px;transition:width .3s}
+  .phase-pct{text-align:right;color:var(--faint);font-size:11px}
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px}
+  .tab{
+    background:none;border:none;color:var(--muted);padding:10px 16px;cursor:pointer;
+    font-size:14px;font-family:inherit;font-weight:600;border-bottom:2px solid transparent;
+  }
+  .tab:hover{color:var(--txt)}
+  .tab.active{color:var(--green);border-bottom-color:var(--green)}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+  .toolbar .spacer{flex:1}
+  .check-toggle{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer}
+
+  /* Weeks */
+  .week{border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden;background:var(--bg2)}
+  .week-head{
+    display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;user-select:none;
+  }
+  .week-head:hover{background:var(--card)}
+  .wk-chevron{color:var(--faint);font-size:13px;transition:transform .2s;width:14px}
+  .week.open .wk-chevron{transform:rotate(90deg)}
+  .wk-num{font-size:11px;font-weight:700;color:var(--green);letter-spacing:.08em;white-space:nowrap}
+  .wk-theme{font-weight:700;font-size:15px}
+  .wk-days{font-size:12px;color:var(--faint)}
+  .wk-spacer{flex:1}
+  .wk-mini{width:120px;height:7px;background:var(--card);border-radius:4px;overflow:hidden}
+  .wk-mini-fill{height:100%;background:var(--green);border-radius:4px}
+  .wk-pct{font-size:12px;color:var(--muted);width:34px;text-align:right}
+  .week-body{display:none;padding:6px 14px 14px;flex-direction:column;gap:9px}
+  .week.open .week-body{display:flex}
+
+  /* Day card */
+  .day{
+    background:var(--card);border:1px solid var(--line);border-left:3px solid var(--line);
+    border-radius:9px;padding:13px 15px;transition:.15s;
+  }
+  .day.done{border-left-color:var(--green);background:var(--card2)}
+  .day.today{border-left-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
+  .day-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .day-badge{
+    background:var(--bg);border:1px solid var(--line);border-radius:6px;
+    font-size:11px;font-weight:700;padding:3px 8px;color:var(--muted);white-space:nowrap;
+  }
+  .day.done .day-badge{color:var(--green);border-color:var(--green-dim)}
+  .day-title{font-weight:700;font-size:14.5px;flex:1;min-width:160px}
+  .day-date{font-size:11px;color:var(--faint)}
+  .chip{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:5px}
+  .type-setup{background:rgba(110,168,255,.16);color:var(--blue)}
+  .type-study{background:rgba(159,239,0,.14);color:var(--green)}
+  .type-lab{background:rgba(46,230,200,.14);color:var(--teal)}
+  .type-review{background:rgba(255,180,84,.16);color:var(--amber)}
+  .chip-hrs{background:var(--bg);color:var(--faint);border:1px solid var(--line)}
+  .milestone{
+    margin-top:9px;font-size:12px;color:var(--gold);background:rgba(255,216,77,.1);
+    border:1px solid rgba(255,216,77,.3);border-radius:6px;padding:6px 9px;
+  }
+  .tasks{list-style:none;margin:10px 0 0;display:flex;flex-direction:column;gap:6px}
+  .tasks li{display:flex;gap:9px;align-items:flex-start;font-size:13.5px}
+  .tasks input{
+    appearance:none;-webkit-appearance:none;width:17px;height:17px;flex-shrink:0;margin-top:1px;
+    border:1.5px solid var(--faint);border-radius:5px;cursor:pointer;background:var(--bg);position:relative;
+  }
+  .tasks input:checked{background:var(--green);border-color:var(--green)}
+  .tasks input:checked::after{
+    content:"";position:absolute;left:5px;top:1.5px;width:4px;height:9px;
+    border:solid #0d1320;border-width:0 2.5px 2.5px 0;transform:rotate(45deg);
+  }
+  .tasks label{cursor:pointer;color:var(--txt)}
+  .tasks input:checked + label{color:var(--faint);text-decoration:line-through}
+  .notes-wrap{margin-top:10px}
+  .notes-wrap summary{
+    font-size:12px;color:var(--muted);cursor:pointer;list-style:none;
+    display:flex;align-items:center;gap:6px;
+  }
+  .notes-wrap summary::-webkit-details-marker{display:none}
+  .notes-wrap summary::before{content:"+ ";color:var(--green);font-weight:700}
+  .notes-wrap[open] summary::before{content:"− "}
+  .notes-wrap textarea{
+    width:100%;margin-top:7px;background:var(--bg);border:1px solid var(--line);
+    color:var(--txt);border-radius:7px;padding:9px;font-family:inherit;font-size:13px;
+    resize:vertical;min-height:62px;
+  }
+  .has-note summary{color:var(--teal)}
+
+  /* Resources */
+  .res-cat{border:1px solid var(--line);border-radius:12px;margin-bottom:14px;background:var(--bg2);padding:16px 18px}
+  .res-cat h3{font-size:15px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .res-cat .dot{width:9px;height:9px;border-radius:50%}
+  .res-cat .cat-note{font-size:12px;color:var(--faint);margin-bottom:10px}
+  .res-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .res-item{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .res-item a{font-size:13.5px;font-weight:600}
+  .res-item .rnote{font-size:11.5px;color:var(--faint);margin-top:2px}
+
+  /* About */
+  .about{border:1px solid var(--line);border-radius:12px;background:var(--bg2);padding:22px 24px}
+  .about h3{font-size:16px;margin:18px 0 7px;color:var(--green)}
+  .about h3:first-child{margin-top:0}
+  .about p{color:var(--muted);font-size:13.5px;margin-bottom:9px}
+  .about ul{margin:0 0 9px 20px;color:var(--muted);font-size:13.5px}
+  .about li{margin-bottom:4px}
+  .about strong{color:var(--txt)}
+  .callout{background:rgba(255,180,84,.1);border:1px solid rgba(255,180,84,.3);
+    border-radius:8px;padding:11px 14px;font-size:13px;color:var(--amber);margin:10px 0}
+
+  .hidden{display:none}
+  footer{margin-top:30px;text-align:center;color:var(--faint);font-size:12px}
+  @media(max-width:760px){
+    .dash{grid-template-columns:1fr}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .res-list{grid-template-columns:1fr}
+    .phase-row{grid-template-columns:110px 1fr 38px}
+    h1{font-size:22px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Hack The Box · Certified Offensive AI Expert</div>
+    <h1>COAE — 90-Day Study Tracker</h1>
+    <div class="sub">A day-by-day path through the AI Red Teamer Job-Role Path — built for a foundations start at ~10–20 hrs/week.</div>
+    <div class="settings">
+      <label>Start date: <input type="date" id="startDate"></label>
+      <span class="sub" id="endNote"></span>
+      <span class="spacer"></span>
+      <button class="btn" id="todayBtn">Jump to Today</button>
+      <button class="btn" id="exportBtn">Export backup</button>
+      <button class="btn" id="importBtn">Import</button>
+      <input type="file" id="importFile" accept="application/json" class="hidden">
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </header>
+
+  <!-- Dashboard -->
+  <div class="dash">
+    <div class="ring-box">
+      <div class="ring" id="ring">
+        <div class="ring-inner">
+          <div class="ring-pct" id="ringPct">0%</div>
+          <div class="ring-lbl">Complete</div>
+        </div>
+      </div>
+      <div class="ring-cap" id="ringCap">0 / 0 tasks done</div>
+    </div>
+    <div>
+      <div class="stats">
+        <div class="stat"><div class="num" id="sDays">0</div><div class="lbl">Days Done</div><div class="meta">of 90</div></div>
+        <div class="stat"><div class="num" id="sStreak">0</div><div class="lbl">Best Streak</div><div class="meta">days in a row</div></div>
+        <div class="stat"><div class="num" id="sToday">—</div><div class="lbl">Today Is</div><div class="meta" id="sTodayMeta">not started</div></div>
+        <div class="stat"><div class="num" id="sPhase">—</div><div class="lbl">Current Phase</div><div class="meta" id="sPhaseMeta"></div></div>
+        <div class="pace on" id="pace">Set your start date to begin tracking your pace.</div>
+        <div class="chart-block">
+          <div class="chart-title">Weekly Progress</div>
+          <div class="weekchart" id="weekChart"></div>
+        </div>
+        <div class="chart-block">
+          <div class="chart-title">Phase Breakdown</div>
+          <div class="phases" id="phaseList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="plan">Study Plan</button>
+    <button class="tab" data-tab="resources">Resource Library</button>
+    <button class="tab" data-tab="about">About the Cert</button>
+  </div>
+
+  <!-- Plan -->
+  <div id="tab-plan">
+    <div class="toolbar">
+      <button class="btn" id="expandAll">Expand all</button>
+      <button class="btn" id="collapseAll">Collapse all</button>
+      <span class="spacer"></span>
+      <label class="check-toggle"><input type="checkbox" id="hideDone"> Hide completed days</label>
+    </div>
+    <div id="weeks"></div>
+  </div>
+
+  <!-- Resources -->
+  <div id="tab-resources" class="hidden"></div>
+
+  <!-- About -->
+  <div id="tab-about" class="hidden">
+    <div class="about">
+      <h3>What is the HTB COAE?</h3>
+      <p>The <strong>HTB Certified Offensive AI Expert (COAE)</strong> is Hack The Box's professional certification for AI red teaming, launched in April 2026. It validates advanced, hands-on skills in attacking and securing AI/ML systems, and was built in collaboration with Google, aligned to Google's Secure AI Framework (SAIF).</p>
+      <p>The certification is earned by completing the <strong>AI Red Teamer Job-Role Path</strong> — 12 modules, 230 sections, rated <strong>Hard</strong> — and then passing the exam.</p>
+
+      <h3>The exam</h3>
+      <p>The COAE exam is a <strong>7-day practical engagement</strong>: you assess a complex AI-driven infrastructure, then submit a <strong>commercial-grade technical report</strong>. It tests adversarial ML, LLM prompt injection and jailbreaking, LLM output exploitation, AI application/system security, AI privacy, and AI defense.</p>
+      <p>HTB recommends the <strong>Silver Annual</strong> subscription, which includes the full path plus one exam voucher valid for two attempts.</p>
+
+      <h3>The 12 modules in order</h3>
+      <ul>
+        <li>Fundamentals of AI · Applications of AI in InfoSec</li>
+        <li>Introduction to Red Teaming AI · Prompt Injection Attacks · LLM Output Attacks</li>
+        <li>AI Data Attacks · Attacking AI - Application and System</li>
+        <li>AI Evasion: Foundations · First-Order Attacks · Sparsity Attacks</li>
+        <li>AI Privacy · AI Defense</li>
+      </ul>
+
+      <h3>How to use this tracker</h3>
+      <ul>
+        <li>Set your <strong>start date</strong> at the top — every day's calendar date and your pace indicator are computed from it.</li>
+        <li>Tick each task as you finish it. A day turns green when all its tasks are done.</li>
+        <li>Use the <strong>Notes</strong> field on each day to journal what you learned, payloads that worked, or things to revisit.</li>
+        <li>The dashboard tracks overall %, days completed, your best streak, and whether you're ahead of or behind pace.</li>
+        <li>All progress is saved automatically in your browser. Use <strong>Export backup</strong> regularly to keep a copy.</li>
+      </ul>
+
+      <div class="callout">Reality check: finishing a Hard-rated, 230-section path <em>and</em> being exam-ready in 90 days from a foundations start at ~10–20 hrs/week is ambitious. This plan front-loads fundamentals and builds in review and catch-up days. If you fall behind, that's expected — extend the timeline rather than skipping the hands-on labs. Depth beats speed on the practical exam.</div>
+
+      <p style="font-size:12px;color:var(--faint);margin-top:14px">This is an independent study aid and is not affiliated with or endorsed by Hack The Box. Always confirm current module counts, exam format, and pricing on the official HTB Academy site.</p>
+    </div>
+  </div>
+
+  <footer>Progress is stored locally in this browser · Export a backup before clearing browser data</footer>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Curriculum data ---------- */
+const WEEK_THEMES = [
+  "Foundations & Lab Setup",
+  "ML Fundamentals — Part 1",
+  "ML Fundamentals — Part 2 & Applied AI",
+  "Applied AI for InfoSec",
+  "Introduction to Red Teaming AI",
+  "Prompt Injection Attacks",
+  "LLM Output Attacks & Mid-Path Review",
+  "AI Data Attacks",
+  "AI Systems Attacks & Evasion Intro",
+  "Adversarial Evasion — Foundations & First-Order",
+  "First-Order & Sparsity Attacks",
+  "Sparsity Attacks & AI Privacy",
+  "AI Defense & Exam Prep"
+];
+
+const PHASES = [
+  {name:"Foundations Setup", from:1, to:7, color:"#6ea8ff"},
+  {name:"AI/ML Core", from:8, to:28, color:"#9fef00"},
+  {name:"LLM Attacks", from:29, to:49, color:"#2ee6c8"},
+  {name:"Data & System Attacks", from:50, to:63, color:"#ffb454"},
+  {name:"Adversarial Evasion", from:64, to:80, color:"#c98bff"},
+  {name:"Privacy, Defense & Exam Prep", from:81, to:90, color:"#ff6b6b"}
+];
+
+const CURRICULUM = [
+  {d:1,title:"Cert orientation & roadmap",type:"setup",hrs:2,tasks:[
+    "Read the HTB COAE certification page and the AI Red Teamer path overview",
+    "Understand the exam format: a 7-day practical engagement plus a commercial-grade report",
+    "Set your start date above and note a target exam window"]},
+  {d:2,title:"Build your lab environment",type:"setup",hrs:2.5,tasks:[
+    "Install Python 3.11+, Miniconda, and VS Code",
+    "Create a conda environment named 'coae' and install JupyterLab",
+    "Verify: pip install numpy pandas scikit-learn matplotlib torch"]},
+  {d:3,title:"Python refresher I",type:"study",hrs:2,tasks:[
+    "Review Python core: data types, control flow, functions, comprehensions",
+    "Work through NumPy basics: arrays, indexing, broadcasting"]},
+  {d:4,title:"Python refresher II",type:"study",hrs:2,tasks:[
+    "Learn pandas basics: DataFrames, loading CSVs, filtering, groupby",
+    "Plot a dataset with matplotlib and run one notebook end-to-end"]},
+  {d:5,title:"Math & ML intuition primer",type:"study",hrs:2,tasks:[
+    "Watch the 3Blue1Brown 'Neural Networks' series, chapters 1–3",
+    "Review intuition for vectors, matrices, gradients, and derivatives"]},
+  {d:6,title:"Cybersecurity & red teaming primer",type:"study",hrs:2,tasks:[
+    "Learn core concepts: CIA triad, threat modeling, the attack lifecycle, red vs blue team",
+    "Skim the OWASP Top 10 for LLM Applications and MITRE ATLAS"]},
+  {d:7,title:"Week 1 review & catch-up",type:"review",hrs:1.5,tasks:[
+    "Read Google's Secure AI Framework (SAIF) overview — the path is aligned to it",
+    "Finish any unfinished setup and organize your note-taking system"]},
+
+  {d:8,title:"Start Module 1: Fundamentals of AI",type:"study",hrs:2,tasks:[
+    "Begin the 'Fundamentals of AI' module (24 sections)",
+    "Sections 1–3: what AI, ML, and deep learning actually are"]},
+  {d:9,title:"Supervised learning",type:"study",hrs:2.5,tasks:[
+    "Module 1 sections 4–6: the supervised learning paradigm",
+    "Understand regression vs classification with concrete examples"]},
+  {d:10,title:"Unsupervised learning",type:"study",hrs:2.5,tasks:[
+    "Module 1 sections 7–9: clustering and dimensionality reduction",
+    "Run a clustering example in JupyterLab"]},
+  {d:11,title:"Reinforcement learning",type:"study",hrs:2.5,tasks:[
+    "Module 1 sections 10–12: RL fundamentals — agents, states, rewards",
+    "Note how RL differs from supervised and unsupervised learning"]},
+  {d:12,title:"Core algorithms I",type:"study",hrs:2.5,tasks:[
+    "Module 1 sections 13–15: decision trees, linear and logistic regression",
+    "Sketch how each algorithm produces a prediction"]},
+  {d:13,title:"Lab consolidation",type:"lab",hrs:2,tasks:[
+    "Re-do this week's exercises in JupyterLab",
+    "Write structured notes on each learning paradigm"]},
+  {d:14,title:"Week 2 review",type:"review",hrs:1.5,tasks:[
+    "Self-quiz on learning paradigms and algorithms",
+    "Make flashcards for the key ML terms you met this week"]},
+
+  {d:15,title:"Core algorithms II",type:"study",hrs:2.5,tasks:[
+    "Module 1 sections 16–18: SVMs, k-NN, and ensemble methods"]},
+  {d:16,title:"Neural networks intro",type:"study",hrs:2.5,tasks:[
+    "Module 1 sections 19–21: perceptrons, activation functions, backpropagation intuition"]},
+  {d:17,title:"Finish Module 1",type:"study",hrs:2.5,milestone:"Module 1 complete — Fundamentals of AI",tasks:[
+    "Module 1 sections 22–24: deep learning concepts and model evaluation",
+    "Complete Module 1 and its assessment"]},
+  {d:18,title:"Start Module 2: Applications of AI in InfoSec",type:"study",hrs:2.5,tasks:[
+    "Begin 'Applications of AI in InfoSec' (25 sections)",
+    "Set up the Miniconda + JupyterLab workflow the module uses",
+    "Sections 1–3: orientation and tooling"]},
+  {d:19,title:"Dataset handling",type:"study",hrs:2.5,tasks:[
+    "Module 2 sections 4–6: loading and exploring datasets"]},
+  {d:20,title:"Data preprocessing",type:"study",hrs:2.5,tasks:[
+    "Module 2 sections 7–9: cleaning, transformation, and feature engineering"]},
+  {d:21,title:"Week 3 review & catch-up",type:"review",hrs:1.5,tasks:[
+    "Review your Module 1 and Module 2 progress",
+    "Catch up on any backlog from the past two weeks"]},
+
+  {d:22,title:"Scikit-learn workflows",type:"study",hrs:2.5,tasks:[
+    "Module 2 sections 10–12: building models with scikit-learn"]},
+  {d:23,title:"Spam classification project",type:"lab",hrs:3,tasks:[
+    "Module 2 sections 13–15: build a spam classifier end-to-end"]},
+  {d:24,title:"Network anomaly detection",type:"lab",hrs:3,tasks:[
+    "Module 2 sections 16–18: detect anomalies in network data"]},
+  {d:25,title:"Malware classification",type:"lab",hrs:3,tasks:[
+    "Module 2 sections 19–21: classify malware with ML"]},
+  {d:26,title:"PyTorch & evaluation metrics",type:"study",hrs:2.5,tasks:[
+    "Module 2 sections 22–23: an introduction to PyTorch",
+    "Learn precision, recall, F1, and ROC/AUC and what each measures"]},
+  {d:27,title:"Finish Module 2",type:"study",hrs:2,milestone:"Module 2 complete — Applications of AI in InfoSec",tasks:[
+    "Module 2 sections 24–25: complete the module and its skills challenge"]},
+  {d:28,title:"Week 4 review",type:"review",hrs:1.5,tasks:[
+    "Consolidate your InfoSec ML mini-projects into your notes",
+    "Write out every evaluation metric and when you would use it"]},
+
+  {d:29,title:"Start Module 3: Introduction to Red Teaming AI",type:"study",hrs:2,tasks:[
+    "Begin 'Introduction to Red Teaming AI' (11 sections)",
+    "Sections 1–3: the AI/ML attack surface"]},
+  {d:30,title:"Vulnerability classes",type:"study",hrs:2,tasks:[
+    "Module 3 sections 4–6: common vulnerabilities in AI/ML deployments"]},
+  {d:31,title:"Attack taxonomy",type:"study",hrs:2,tasks:[
+    "Module 3 sections 7–9: types of attacks against AI components",
+    "Map each attack type to a MITRE ATLAS technique"]},
+  {d:32,title:"Finish Module 3",type:"study",hrs:2,milestone:"Module 3 complete — Introduction to Red Teaming AI",tasks:[
+    "Module 3 sections 10–11: complete the module",
+    "Summarize a red-team methodology for AI systems"]},
+  {d:33,title:"Frameworks deep dive",type:"study",hrs:2,tasks:[
+    "Study the OWASP Top 10 for LLM Applications in depth",
+    "Map each OWASP item to a module in this path"]},
+  {d:34,title:"LLM testing playground",type:"lab",hrs:2.5,tasks:[
+    "Set up an LLM testing playground (a local model or an API)",
+    "Try the Lakera Gandalf prompt-injection challenge"]},
+  {d:35,title:"Week 5 review",type:"review",hrs:1.5,tasks:[
+    "Review the attack taxonomy you have learned",
+    "Build a personal one-page 'AI attack map'"]},
+
+  {d:36,title:"Start Module 4: Prompt Injection Attacks",type:"study",hrs:2.5,tasks:[
+    "Begin 'Prompt Injection Attacks' (12 sections)",
+    "Sections 1–3: prompt injection basics"]},
+  {d:37,title:"Direct prompt injection",type:"study",hrs:2.5,tasks:[
+    "Module 4 sections 4–5: direct injection techniques"]},
+  {d:38,title:"Indirect prompt injection",type:"study",hrs:2.5,tasks:[
+    "Module 4 sections 6–7: indirect and second-order injection"]},
+  {d:39,title:"Jailbreaks",type:"study",hrs:2.5,tasks:[
+    "Module 4 sections 8–9: jailbreak techniques and real-world vulnerability reports"]},
+  {d:40,title:"Advanced injection techniques",type:"study",hrs:2.5,tasks:[
+    "Module 4 sections 10–11: novel techniques drawn from academic research"]},
+  {d:41,title:"Finish Module 4",type:"study",hrs:2,milestone:"Module 4 complete — Prompt Injection Attacks",tasks:[
+    "Module 4 section 12 and the skills assessment",
+    "Complete Module 4"]},
+  {d:42,title:"Week 6 practice",type:"lab",hrs:2,tasks:[
+    "Practice on HackAPrompt-style prompt-injection challenges",
+    "Document the payloads that worked and explain why"]},
+
+  {d:43,title:"Start Module 5: LLM Output Attacks",type:"study",hrs:2.5,tasks:[
+    "Begin 'LLM Output Attacks' (14 sections)",
+    "Sections 1–3: insecure output handling"]},
+  {d:44,title:"Output exploitation",type:"study",hrs:2.5,tasks:[
+    "Module 5 sections 4–6: XSS, SSRF, and code execution via LLM outputs"]},
+  {d:45,title:"Insecure LLM applications",type:"study",hrs:2.5,tasks:[
+    "Module 5 sections 7–9: vulnerable application patterns"]},
+  {d:46,title:"LLM abuse attacks",type:"study",hrs:2.5,tasks:[
+    "Module 5 sections 10–12: hate speech and misinformation generation"]},
+  {d:47,title:"Finish Module 5",type:"study",hrs:2,milestone:"Module 5 complete — LLM Output Attacks",tasks:[
+    "Module 5 sections 13–14: detection and mitigation",
+    "Complete Module 5"]},
+  {d:48,title:"Mid-path review",type:"review",hrs:2,tasks:[
+    "Review Modules 1–5 and list your weak areas",
+    "Redo the toughest labs you have done so far"]},
+  {d:49,title:"Mid-path checkpoint",type:"review",hrs:1.5,tasks:[
+    "Self-assess: are you on pace? Adjust the plan if needed",
+    "Take a lighter day to recharge before the harder modules"]},
+
+  {d:50,title:"Start Module 6: AI Data Attacks",type:"study",hrs:3,tasks:[
+    "Begin 'AI Data Attacks' (25 sections, Hard)",
+    "Sections 1–4: AI data pipelines and their attack surface"]},
+  {d:51,title:"Data poisoning I",type:"study",hrs:3,tasks:[
+    "Module 6 sections 5–8: data poisoning fundamentals"]},
+  {d:52,title:"Data poisoning II",type:"study",hrs:3,tasks:[
+    "Module 6 sections 9–12: achieving targeted misclassification via poisoning"]},
+  {d:53,title:"Backdoor attacks",type:"study",hrs:3,tasks:[
+    "Module 6 sections 13–16: backdoor and trojan attacks on models"]},
+  {d:54,title:"Pipeline exploitation",type:"study",hrs:3,tasks:[
+    "Module 6 sections 17–20: arbitrary code execution through data pipelines"]},
+  {d:55,title:"Finish Module 6",type:"study",hrs:3,milestone:"Module 6 complete — AI Data Attacks",tasks:[
+    "Module 6 sections 21–25: complete the module and its skills assessment"]},
+  {d:56,title:"Week 8 review",type:"review",hrs:2,tasks:[
+    "Consolidate your data-attack notes",
+    "Redo the exercises — this is a Hard module and worth re-reinforcing"]},
+
+  {d:57,title:"Start Module 7: Attacking AI - Application & System",type:"study",hrs:2.5,tasks:[
+    "Begin 'Attacking AI - Application and System' (14 sections)",
+    "Sections 1–3: application and system component vulnerabilities"]},
+  {d:58,title:"Deployment vulnerabilities",type:"study",hrs:2.5,tasks:[
+    "Module 7 sections 4–6: deployment-level attack vectors"]},
+  {d:59,title:"Model Context Protocol (MCP) deep dive",type:"study",hrs:2.5,tasks:[
+    "Module 7 sections 7–9: how the Model Context Protocol works"]},
+  {d:60,title:"MCP security",type:"study",hrs:2.5,tasks:[
+    "Module 7 sections 10–12: security vulnerabilities in MCP"]},
+  {d:61,title:"Finish Module 7",type:"study",hrs:2,milestone:"Module 7 complete — Attacking AI: Application & System",tasks:[
+    "Module 7 sections 13–14: complete the module"]},
+  {d:62,title:"Start Module 8: AI Evasion - Foundations",type:"study",hrs:2.5,tasks:[
+    "Begin 'AI Evasion - Foundations' (12 sections)",
+    "Sections 1–3: inference-time evasion fundamentals"]},
+  {d:63,title:"Week 9 review",type:"review",hrs:2,tasks:[
+    "Review application and system attacks",
+    "Install the Adversarial Robustness Toolbox (ART) and skim its docs"]},
+
+  {d:64,title:"Evasion: white-box vs black-box",type:"study",hrs:2.5,tasks:[
+    "Module 8 sections 4–6: white-box and black-box evasion settings"]},
+  {d:65,title:"Crafting evasion inputs",type:"study",hrs:2.5,tasks:[
+    "Module 8 sections 7–9: manipulating inputs to bypass classifiers"]},
+  {d:66,title:"Finish Module 8",type:"study",hrs:2,milestone:"Module 8 complete — AI Evasion: Foundations",tasks:[
+    "Module 8 sections 10–12: complete the module"]},
+  {d:67,title:"Start Module 9: AI Evasion - First-Order Attacks",type:"study",hrs:3,tasks:[
+    "Begin 'AI Evasion - First-Order Attacks' (23 sections, Hard)",
+    "Sections 1–4: an introduction to gradient-based attacks"]},
+  {d:68,title:"FGSM",type:"study",hrs:3,tasks:[
+    "Module 9 sections 5–8: the Fast Gradient Sign Method"]},
+  {d:69,title:"Iterative attacks",type:"study",hrs:3,tasks:[
+    "Module 9 sections 9–12: BIM and PGD iterative attacks"]},
+  {d:70,title:"Week 10 lab",type:"lab",hrs:2.5,tasks:[
+    "Re-implement FGSM and PGD by hand in PyTorch on a small model"]},
+
+  {d:71,title:"Advanced first-order attacks",type:"study",hrs:3,tasks:[
+    "Module 9 sections 13–16: Carlini-Wagner and optimization-based attacks"]},
+  {d:72,title:"Targeted perturbations",type:"study",hrs:3,tasks:[
+    "Module 9 sections 17–20: crafting targeted misclassifications"]},
+  {d:73,title:"Finish Module 9",type:"study",hrs:2.5,milestone:"Module 9 complete — AI Evasion: First-Order Attacks",tasks:[
+    "Module 9 sections 21–23: complete the module"]},
+  {d:74,title:"Start Module 10: AI Evasion - Sparsity Attacks",type:"study",hrs:3,tasks:[
+    "Begin 'AI Evasion - Sparsity Attacks' (28 sections, Hard)",
+    "Sections 1–5: L0-constrained adversarial attacks"]},
+  {d:75,title:"Saliency-guided attacks",type:"study",hrs:3,tasks:[
+    "Module 10 sections 6–10: saliency maps and feature selection"]},
+  {d:76,title:"Sparse perturbations",type:"study",hrs:3,tasks:[
+    "Module 10 sections 11–15: minimizing the number of modified features"]},
+  {d:77,title:"Week 11 review",type:"review",hrs:2.5,tasks:[
+    "Consolidate evasion notes — this is the hardest stretch of the path",
+    "Redo the labs you found most difficult"]},
+
+  {d:78,title:"One-pixel & few-pixel attacks",type:"study",hrs:3,tasks:[
+    "Module 10 sections 16–20: one-pixel and few-pixel attacks"]},
+  {d:79,title:"Targeted sparsity attacks",type:"study",hrs:3,tasks:[
+    "Module 10 sections 21–24: targeted L0 attacks"]},
+  {d:80,title:"Finish Module 10",type:"study",hrs:2.5,milestone:"Module 10 complete — AI Evasion: Sparsity Attacks",tasks:[
+    "Module 10 sections 25–28: complete the module and its skills assessment"]},
+  {d:81,title:"Start Module 11: AI Privacy",type:"study",hrs:2.5,tasks:[
+    "Begin 'AI Privacy' (21 sections)",
+    "Sections 1–5: membership inference attacks"]},
+  {d:82,title:"Model inversion & extraction",type:"study",hrs:2.5,tasks:[
+    "Module 11 sections 6–11: model inversion, extraction, and attribute inference"]},
+  {d:83,title:"Differential privacy defenses",type:"study",hrs:2.5,tasks:[
+    "Module 11 sections 12–17: differential privacy fundamentals"]},
+  {d:84,title:"Finish Module 11",type:"study",hrs:2,milestone:"Module 11 complete — AI Privacy",tasks:[
+    "Module 11 sections 18–21: complete the module"]},
+
+  {d:85,title:"Start Module 12: AI Defense",type:"study",hrs:2.5,tasks:[
+    "Begin 'AI Defense' (21 sections)",
+    "Sections 1–7: adversarial training and adversarial tuning"]},
+  {d:86,title:"Guardrails & defenses",type:"study",hrs:2.5,tasks:[
+    "Module 12 sections 8–14: LLM guardrails and their implementation"]},
+  {d:87,title:"Finish Module 12 — Path complete",type:"study",hrs:2.5,milestone:"AI Red Teamer Path complete — all 12 modules done!",tasks:[
+    "Module 12 sections 15–21: complete the module",
+    "You have now finished all 12 modules of the AI Red Teamer path"]},
+  {d:88,title:"Report-writing practice",type:"lab",hrs:2.5,tasks:[
+    "Study the structure of a commercial-grade penetration test report",
+    "Draft a sample AI security assessment report"]},
+  {d:89,title:"Mock engagement",type:"lab",hrs:3,tasks:[
+    "Run a self-directed mock assessment chaining 3–4 attack types against a test AI app",
+    "Time-box it and take proper engagement notes"]},
+  {d:90,title:"Exam readiness & scheduling",type:"review",hrs:2,milestone:"Exam-ready — schedule your COAE engagement",tasks:[
+    "Do a final review of your weak areas",
+    "Confirm your exam voucher and schedule your 7-day COAE engagement"]}
+];
+
+const RESOURCES = [
+  {cat:"Official HTB — Cert & Path", color:"#9fef00", note:"Start here. The path is the official requirement for the certification.", items:[
+    {n:"HTB Certified Offensive AI Expert (COAE)", u:"https://academy.hackthebox.com/preview/certifications/htb-certified-offensive-ai-expert", note:"Official certification page"},
+    {n:"AI Red Teamer Job-Role Path", u:"https://academy.hackthebox.com/path/preview/ai-red-teamer", note:"12 modules · 230 sections · Hard"},
+    {n:"HTB Academy", u:"https://academy.hackthebox.com/", note:"Subscription & dashboard"},
+    {n:"HTB Labs", u:"https://app.hackthebox.com/", note:"Extra hands-on practice"}
+  ]},
+  {cat:"HTB Academy Modules (in study order)", color:"#2ee6c8", note:"Work through these 12 in sequence — the plan follows this order.", items:[
+    {n:"1 · Fundamentals of AI", u:"https://academy.hackthebox.com/course/preview/fundamentals-of-ai", note:"24 sections"},
+    {n:"2 · Applications of AI in InfoSec", u:"https://academy.hackthebox.com/course/preview/applications-of-ai-in-infosec", note:"25 sections"},
+    {n:"3 · Introduction to Red Teaming AI", u:"https://academy.hackthebox.com/course/preview/introduction-to-red-teaming-ai", note:"11 sections"},
+    {n:"4 · Prompt Injection Attacks", u:"https://academy.hackthebox.com/course/preview/prompt-injection-attacks", note:"12 sections"},
+    {n:"5 · LLM Output Attacks", u:"https://academy.hackthebox.com/course/preview/llm-output-attacks", note:"14 sections"},
+    {n:"6 · AI Data Attacks", u:"https://academy.hackthebox.com/course/preview/ai-data-attacks", note:"25 sections · Hard"},
+    {n:"7 · Attacking AI - Application and System", u:"https://academy.hackthebox.com/course/preview/attacking-ai---application-and-system", note:"14 sections"},
+    {n:"8 · AI Evasion - Foundations", u:"https://academy.hackthebox.com/course/preview/ai-evasion---foundations", note:"12 sections"},
+    {n:"9 · AI Evasion - First-Order Attacks", u:"https://academy.hackthebox.com/course/preview/ai-evasion---first-order-attacks", note:"23 sections · Hard"},
+    {n:"10 · AI Evasion - Sparsity Attacks", u:"https://academy.hackthebox.com/course/preview/ai-evasion---sparsity-attacks", note:"28 sections · Hard"},
+    {n:"11 · AI Privacy", u:"https://academy.hackthebox.com/course/preview/ai-privacy", note:"21 sections"},
+    {n:"12 · AI Defense", u:"https://academy.hackthebox.com/course/preview/ai-defense", note:"21 sections"}
+  ]},
+  {cat:"Frameworks & Standards", color:"#6ea8ff", note:"The mental models behind the path — reference them throughout.", items:[
+    {n:"OWASP Top 10 for LLM Applications", u:"https://genai.owasp.org/llm-top-10/", note:"The canonical LLM risk list"},
+    {n:"MITRE ATLAS", u:"https://atlas.mitre.org/", note:"Adversarial threat landscape for AI systems"},
+    {n:"Google Secure AI Framework (SAIF)", u:"https://saif.google/", note:"The path is aligned to this"},
+    {n:"NIST AI Risk Management Framework", u:"https://www.nist.gov/itl/ai-risk-management-framework", note:"Governance & risk context"},
+    {n:"OWASP ML Security Top 10", u:"https://owasp.org/www-project-machine-learning-security-top-10/", note:"Classic ML attack categories"}
+  ]},
+  {cat:"Foundations — Python & ML", color:"#ffb454", note:"Supplementary free material for the foundations weeks.", items:[
+    {n:"3Blue1Brown — Neural Networks", u:"https://www.3blue1brown.com/topics/neural-networks", note:"Best visual intuition for NNs"},
+    {n:"Practical Deep Learning (fast.ai)", u:"https://course.fast.ai/", note:"Free hands-on ML course"},
+    {n:"scikit-learn documentation", u:"https://scikit-learn.org/stable/", note:"User guide & examples"},
+    {n:"PyTorch tutorials", u:"https://pytorch.org/tutorials/", note:"Official getting-started series"},
+    {n:"Kaggle Learn", u:"https://www.kaggle.com/learn", note:"Short free micro-courses"},
+    {n:"Miniconda", u:"https://docs.conda.io/projects/miniconda/", note:"Environment manager for your lab"}
+  ]},
+  {cat:"Offensive AI Tools", color:"#c98bff", note:"Hands-on tooling for practice and your mock engagement.", items:[
+    {n:"garak", u:"https://github.com/NVIDIA/garak", note:"LLM vulnerability scanner"},
+    {n:"Adversarial Robustness Toolbox (ART)", u:"https://github.com/Trusted-AI/adversarial-robustness-toolbox", note:"Evasion, poisoning, extraction"},
+    {n:"Microsoft PyRIT", u:"https://github.com/Azure/PyRIT", note:"Generative AI red-teaming toolkit"},
+    {n:"Foolbox", u:"https://github.com/bethgelab/foolbox", note:"Adversarial attacks library"},
+    {n:"CleverHans", u:"https://github.com/cleverhans-lab/cleverhans", note:"Adversarial example benchmarks"},
+    {n:"promptfoo", u:"https://github.com/promptfoo/promptfoo", note:"LLM testing & red teaming"},
+    {n:"Microsoft Counterfit", u:"https://github.com/Azure/counterfit", note:"Automation for AI security testing"}
+  ]},
+  {cat:"Practice & Community", color:"#ff6b6b", note:"Sharpen prompt-injection instincts and stay current.", items:[
+    {n:"Lakera Gandalf", u:"https://gandalf.lakera.ai/", note:"Prompt injection challenge game"},
+    {n:"HackAPrompt", u:"https://www.hackaprompt.com/", note:"Prompt hacking competition & playground"},
+    {n:"AI Village (DEF CON)", u:"https://aivillage.org/", note:"Community, talks, and CTFs"}
+  ]},
+  {cat:"Key Research Papers", color:"#8da2bd", note:"The primary sources behind the evasion modules.", items:[
+    {n:"Explaining and Harnessing Adversarial Examples (FGSM)", u:"https://arxiv.org/abs/1412.6572", note:"Goodfellow et al., 2014"},
+    {n:"Deep Learning Models Resistant to Adversarial Attacks (PGD)", u:"https://arxiv.org/abs/1706.06083", note:"Madry et al., 2017"},
+    {n:"Towards Evaluating the Robustness of Neural Networks (C&W)", u:"https://arxiv.org/abs/1608.04644", note:"Carlini & Wagner, 2016"},
+    {n:"One Pixel Attack for Fooling Deep Neural Networks", u:"https://arxiv.org/abs/1710.08864", note:"Su et al., 2017"}
+  ]}
+];
+
+/* ---------- State ---------- */
+const STORE_KEY = "coae_tracker_v1";
+let state = {startDate:"", done:{}, notes:{}};
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){ state = Object.assign({startDate:"",done:{},notes:{}}, JSON.parse(raw)); }
+  }catch(e){ /* ignore */ }
+  if(!state.startDate){
+    const t = new Date();
+    state.startDate = t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
+  }
+}
+function save(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){ /* ignore */ }
+}
+
+/* ---------- Helpers ---------- */
+const TOTAL_TASKS = CURRICULUM.reduce((s,d)=>s+d.tasks.length,0);
+function weekOf(day){ return Math.ceil(day/7); }
+function taskId(day,i){ return day+"-"+i; }
+function dayDone(d){ return d.tasks.every((_,i)=>state.done[taskId(d.d,i)]); }
+function dayDoneCount(d){ return d.tasks.filter((_,i)=>state.done[taskId(d.d,i)]).length; }
+
+function parseStart(){
+  const p = (state.startDate||"").split("-");
+  if(p.length!==3) return null;
+  const dt = new Date(+p[0], +p[1]-1, +p[2]);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+function dateForDay(day){
+  const s = parseStart(); if(!s) return null;
+  const dt = new Date(s.getTime()); dt.setDate(dt.getDate()+(day-1)); return dt;
+}
+function fmtDate(dt){
+  if(!dt) return "";
+  return dt.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+}
+function currentPlanDay(){
+  const s = parseStart(); if(!s) return 0;
+  const now = new Date(); now.setHours(0,0,0,0);
+  const sd = new Date(s.getTime()); sd.setHours(0,0,0,0);
+  const diff = Math.floor((now-sd)/86400000)+1;
+  return diff;
+}
+
+/* ---------- Stats ---------- */
+function computeStats(){
+  let doneTasks=0, doneDays=0;
+  CURRICULUM.forEach(d=>{
+    d.tasks.forEach((_,i)=>{ if(state.done[taskId(d.d,i)]) doneTasks++; });
+    if(dayDone(d)) doneDays++;
+  });
+  // best streak of consecutive completed days
+  let best=0,run=0;
+  CURRICULUM.forEach(d=>{ if(dayDone(d)){run++; if(run>best)best=run;} else run=0; });
+  return {doneTasks, doneDays, best};
+}
+
+/* ---------- Render: dashboard ---------- */
+function renderDashboard(){
+  const st = computeStats();
+  const pct = TOTAL_TASKS ? Math.round(st.doneTasks/TOTAL_TASKS*100) : 0;
+  document.getElementById("ringPct").textContent = pct+"%";
+  document.getElementById("ringCap").textContent = st.doneTasks+" / "+TOTAL_TASKS+" tasks done";
+  document.getElementById("ring").style.background =
+    "conic-gradient(var(--green) "+(pct*3.6)+"deg, var(--card) "+(pct*3.6)+"deg)";
+  document.getElementById("sDays").textContent = st.doneDays;
+  document.getElementById("sStreak").textContent = st.best;
+
+  const cd = currentPlanDay();
+  const todayEl = document.getElementById("sToday");
+  const todayMeta = document.getElementById("sTodayMeta");
+  if(cd<1){
+    todayEl.textContent = "Pre"; todayMeta.textContent = "starts soon";
+  }else if(cd>90){
+    todayEl.textContent = "Done"; todayMeta.textContent = "past day 90";
+  }else{
+    todayEl.textContent = "Day "+cd; todayMeta.textContent = "Week "+weekOf(cd);
+  }
+
+  // current phase
+  const phaseDay = Math.min(Math.max(cd,1),90);
+  const ph = PHASES.find(p=>phaseDay>=p.from && phaseDay<=p.to) || PHASES[0];
+  document.getElementById("sPhase").textContent = "P"+(PHASES.indexOf(ph)+1);
+  document.getElementById("sPhaseMeta").textContent = ph.name;
+  document.getElementById("sPhase").style.color = ph.color;
+
+  // pace
+  const pace = document.getElementById("pace");
+  pace.className = "pace";
+  if(cd<1){
+    pace.classList.add("on");
+    pace.textContent = "Your plan begins on "+fmtDate(dateForDay(1))+". Get your lab environment ready.";
+  }else{
+    const expected = Math.min(cd,90);
+    const delta = st.doneDays - expected;
+    if(delta>=2){ pace.classList.add("ahead");
+      pace.textContent = "Ahead of pace — "+st.doneDays+" days done vs. day "+expected+" expected. Nice work.";
+    }else if(delta<=-3){ pace.classList.add("behind");
+      pace.textContent = "Behind pace — "+st.doneDays+" days done vs. day "+expected+" expected. Consider a catch-up day or extending your timeline.";
+    }else{ pace.classList.add("on");
+      pace.textContent = "On pace — "+st.doneDays+" days done, around day "+expected+" of 90.";
+    }
+  }
+
+  // week chart
+  const wc = document.getElementById("weekChart");
+  wc.innerHTML = "";
+  for(let w=1; w<=13; w++){
+    const days = CURRICULUM.filter(d=>weekOf(d.d)===w);
+    let t=0,done=0;
+    days.forEach(d=>{ d.tasks.forEach((_,i)=>{ t++; if(state.done[taskId(d.d,i)])done++; }); });
+    const p = t? Math.round(done/t*100):0;
+    const col = document.createElement("div");
+    col.className = "wbar-col";
+    col.title = "Week "+w+": "+WEEK_THEMES[w-1]+" — "+p+"%";
+    col.innerHTML = '<div class="wbar-track"><div class="wbar-fill" style="height:'+p+'%"></div></div>'+
+                    '<div class="wbar-lbl">W'+w+'</div>';
+    wc.appendChild(col);
+  }
+
+  // phases
+  const pl = document.getElementById("phaseList");
+  pl.innerHTML = "";
+  PHASES.forEach(p=>{
+    const days = CURRICULUM.filter(d=>d.d>=p.from && d.d<=p.to);
+    let t=0,done=0;
+    days.forEach(d=>{ d.tasks.forEach((_,i)=>{ t++; if(state.done[taskId(d.d,i)])done++; }); });
+    const pc = t?Math.round(done/t*100):0;
+    const row = document.createElement("div");
+    row.className = "phase-row";
+    row.innerHTML =
+      '<div class="phase-name">'+p.name+'</div>'+
+      '<div class="phase-track"><div class="phase-fill" style="width:'+pc+'%;background:'+p.color+'"></div></div>'+
+      '<div class="phase-pct">'+pc+'%</div>';
+    pl.appendChild(row);
+  });
+}
+
+/* ---------- Render: plan ---------- */
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function renderPlan(){
+  const wrap = document.getElementById("weeks");
+  const hideDone = document.getElementById("hideDone").checked;
+  const cd = currentPlanDay();
+  const curWeek = (cd>=1&&cd<=90)? weekOf(cd) : 1;
+  wrap.innerHTML = "";
+
+  for(let w=1; w<=13; w++){
+    const days = CURRICULUM.filter(d=>weekOf(d.d)===w);
+    let t=0,done=0,hrs=0;
+    days.forEach(d=>{ hrs+=d.hrs; d.tasks.forEach((_,i)=>{ t++; if(state.done[taskId(d.d,i)])done++; }); });
+    const p = t?Math.round(done/t*100):0;
+    const first = days[0].d, last = days[days.length-1].d;
+
+    const week = document.createElement("div");
+    week.className = "week" + ((w===curWeek)?" open":"");
+    week.dataset.week = w;
+
+    const head = document.createElement("div");
+    head.className = "week-head";
+    head.innerHTML =
+      '<span class="wk-chevron">&#9654;</span>'+
+      '<span class="wk-num">WEEK '+w+'</span>'+
+      '<span class="wk-theme">'+esc(WEEK_THEMES[w-1])+'</span>'+
+      '<span class="wk-days">Days '+first+'–'+last+' · ~'+hrs+'h</span>'+
+      '<span class="wk-spacer"></span>'+
+      '<span class="wk-mini"><span class="wk-mini-fill" style="width:'+p+'%"></span></span>'+
+      '<span class="wk-pct">'+p+'%</span>';
+    head.addEventListener("click",()=>{ week.classList.toggle("open"); });
+    week.appendChild(head);
+
+    const body = document.createElement("div");
+    body.className = "week-body";
+    days.forEach(d=>{
+      const isDone = dayDone(d);
+      if(hideDone && isDone) return;
+      body.appendChild(renderDay(d, cd));
+    });
+    if(body.children.length===0){
+      const e=document.createElement("div");
+      e.style.cssText="color:var(--faint);font-size:13px;padding:8px 4px";
+      e.textContent="All days in this week are complete.";
+      body.appendChild(e);
+    }
+    week.appendChild(body);
+    wrap.appendChild(week);
+  }
+}
+
+function renderDay(d, cd){
+  const card = document.createElement("div");
+  const isDone = dayDone(d);
+  card.className = "day" + (isDone?" done":"") + ((d.d===cd)?" today":"");
+  card.id = "day-"+d.d;
+
+  const dt = dateForDay(d.d);
+  const typeLabel = {setup:"Setup",study:"Study",lab:"Lab",review:"Review"}[d.type]||d.type;
+
+  let html =
+    '<div class="day-head">'+
+      '<span class="day-badge">DAY '+d.d+(d.d===cd?' · TODAY':'')+'</span>'+
+      '<span class="day-title">'+esc(d.title)+'</span>'+
+      '<span class="chip type-'+d.type+'">'+typeLabel+'</span>'+
+      '<span class="chip chip-hrs">~'+d.hrs+'h</span>'+
+      (dt?'<span class="day-date">'+fmtDate(dt)+'</span>':'')+
+    '</div>';
+
+  if(d.milestone){
+    html += '<div class="milestone">&#9733; Milestone: '+esc(d.milestone)+'</div>';
+  }
+
+  html += '<ul class="tasks">';
+  d.tasks.forEach((tk,i)=>{
+    const id = taskId(d.d,i);
+    const ck = state.done[id] ? " checked" : "";
+    html += '<li><input type="checkbox" id="ck-'+id+'" data-id="'+id+'"'+ck+'>'+
+            '<label for="ck-'+id+'">'+esc(tk)+'</label></li>';
+  });
+  html += '</ul>';
+
+  const note = state.notes[d.d] || "";
+  html += '<details class="notes-wrap'+(note?' has-note':'')+'">'+
+            '<summary>Notes &amp; journal'+(note?' (saved)':'')+'</summary>'+
+            '<textarea data-day="'+d.d+'" placeholder="What did you learn? Payloads that worked, things to revisit, questions...">'+esc(note)+'</textarea>'+
+          '</details>';
+
+  card.innerHTML = html;
+
+  card.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener("change",()=>{
+      if(cb.checked) state.done[cb.dataset.id]=true;
+      else delete state.done[cb.dataset.id];
+      save();
+      const nowDone = dayDone(d);
+      card.classList.toggle("done", nowDone);
+      renderDashboard();
+      updateWeekHeader(weekOf(d.d));
+    });
+  });
+  const ta = card.querySelector("textarea");
+  ta.addEventListener("input",()=>{
+    const v = ta.value;
+    if(v.trim()) state.notes[d.d]=v; else delete state.notes[d.d];
+    save();
+  });
+  return card;
+}
+
+function updateWeekHeader(w){
+  const week = document.querySelector('.week[data-week="'+w+'"]');
+  if(!week) return;
+  const days = CURRICULUM.filter(d=>weekOf(d.d)===w);
+  let t=0,done=0;
+  days.forEach(d=>{ d.tasks.forEach((_,i)=>{ t++; if(state.done[taskId(d.d,i)])done++; }); });
+  const p = t?Math.round(done/t*100):0;
+  week.querySelector(".wk-mini-fill").style.width = p+"%";
+  week.querySelector(".wk-pct").textContent = p+"%";
+}
+
+/* ---------- Render: resources ---------- */
+function renderResources(){
+  const wrap = document.getElementById("tab-resources");
+  wrap.innerHTML = "";
+  RESOURCES.forEach(c=>{
+    const box = document.createElement("div");
+    box.className = "res-cat";
+    let items = '<div class="res-list">';
+    c.items.forEach(it=>{
+      items += '<div class="res-item">'+
+        '<a href="'+it.u+'" target="_blank" rel="noopener">'+esc(it.n)+'</a>'+
+        '<div class="rnote">'+esc(it.note)+'</div></div>';
+    });
+    items += '</div>';
+    box.innerHTML =
+      '<h3><span class="dot" style="background:'+c.color+'"></span>'+esc(c.cat)+'</h3>'+
+      '<div class="cat-note">'+esc(c.note)+'</div>'+ items;
+    wrap.appendChild(box);
+  });
+}
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll(".tab").forEach(tb=>{
+  tb.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    tb.classList.add("active");
+    ["plan","resources","about"].forEach(name=>{
+      document.getElementById("tab-"+name).classList.toggle("hidden", name!==tb.dataset.tab);
+    });
+  });
+});
+
+/* ---------- Controls ---------- */
+document.getElementById("startDate").addEventListener("change",e=>{
+  state.startDate = e.target.value;
+  save(); renderAll();
+});
+document.getElementById("hideDone").addEventListener("change",renderPlan);
+document.getElementById("expandAll").addEventListener("click",()=>{
+  document.querySelectorAll(".week").forEach(w=>w.classList.add("open"));
+});
+document.getElementById("collapseAll").addEventListener("click",()=>{
+  document.querySelectorAll(".week").forEach(w=>w.classList.remove("open"));
+});
+document.getElementById("todayBtn").addEventListener("click",()=>{
+  const cd = currentPlanDay();
+  const target = Math.min(Math.max(cd,1),90);
+  document.querySelector('.tab[data-tab="plan"]').click();
+  const week = document.querySelector('.week[data-week="'+weekOf(target)+'"]');
+  if(week) week.classList.add("open");
+  const el = document.getElementById("day-"+target);
+  if(el) el.scrollIntoView({behavior:"smooth",block:"center"});
+});
+document.getElementById("exportBtn").addEventListener("click",()=>{
+  const blob = new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "coae-tracker-backup.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+document.getElementById("importBtn").addEventListener("click",()=>{
+  document.getElementById("importFile").click();
+});
+document.getElementById("importFile").addEventListener("change",e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const obj = JSON.parse(r.result);
+      state = Object.assign({startDate:"",done:{},notes:{}}, obj);
+      save(); init();
+      alert("Backup imported successfully.");
+    }catch(err){ alert("Could not read that file — make sure it is a tracker backup."); }
+  };
+  r.readAsText(f);
+});
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  if(confirm("Reset all progress, notes, and start date? This cannot be undone. Consider exporting a backup first.")){
+    state = {startDate:"",done:{},notes:{}};
+    try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+    init();
+  }
+});
+
+/* ---------- Init ---------- */
+function renderAll(){
+  document.getElementById("startDate").value = state.startDate;
+  const endDt = dateForDay(90);
+  document.getElementById("endNote").textContent = endDt ? "Plan ends "+fmtDate(endDt) : "";
+  renderDashboard();
+  renderPlan();
+}
+function init(){
+  load();
+  renderResources();
+  renderAll();
+}
+init();
+</script>
+</body>
+</html>
