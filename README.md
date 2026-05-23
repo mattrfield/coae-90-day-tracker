@@ -16,7 +16,7 @@ It lays out a complete **90-day plan** through the [AI Red Teamer Job-Role Path]
 
 1. Clone the repo:
    ```bash
-   git clone https://github.com/<your-username>/coae-90-day-tracker.git
+   git clone https://github.com/mattrfield/coae-90-day-tracker.git
    ```
 2. Open `coae-90-day-tracker.html` in any modern browser (double-click it, or `File > Open`).
 3. Set your **start date** at the top — every day's calendar date and your pace indicator are computed from it.
