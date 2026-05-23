@@ -4,6 +4,8 @@ An interactive, offline-friendly study tracker for the **Hack The Box Certified 
 
 It lays out a complete **90-day plan** through the [AI Red Teamer Job-Role Path](https://academy.hackthebox.com/path/preview/ai-red-teamer) — all 12 modules / 230 sections — and tracks your progress, notes, and pace as you go. The whole thing is a single self-contained HTML file: no build step, no dependencies, no internet required.
 
+![The COAE 90-Day Study Tracker — progress dashboard and day-by-day plan](screenshot.png)
+
 ## Features
 
 - **Day-by-day 90-day plan** — 13 weekly phases, from lab setup and AI/ML foundations through prompt injection, data attacks, adversarial evasion, AI privacy, and defense, ending with report-writing practice and a mock engagement.
