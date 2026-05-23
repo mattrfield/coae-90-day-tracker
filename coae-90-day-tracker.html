@@ -40,6 +40,14 @@
   .btn:hover{border-color:var(--green);color:var(--green)}
   .btn.primary{background:var(--green);color:#0d1320;border-color:var(--green);font-weight:700}
   .btn.primary:hover{background:var(--green-dim);color:#0d1320}
+  .modeseg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;vertical-align:middle}
+  .modebtn{
+    background:var(--card2);border:none;border-right:1px solid var(--line);color:var(--muted);
+    padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;transition:.15s;
+  }
+  .modebtn:last-child{border-right:none}
+  .modebtn:hover{color:var(--txt)}
+  .modebtn.active{background:var(--green);color:#0d1320;font-weight:700}
 
   /* Dashboard */
   .dash{display:grid;grid-template-columns:auto 1fr;gap:22px;
@@ -206,6 +214,12 @@
     <div class="sub">A day-by-day path through the AI Red Teamer Job-Role Path — built for a foundations start at ~10–20 hrs/week.</div>
     <div class="settings">
       <label>Start date: <input type="date" id="startDate"></label>
+      <span class="sub">Timeline:</span>
+      <span class="modeseg" id="modeSeg">
+        <button type="button" class="modebtn" data-mode="30">30-day</button>
+        <button type="button" class="modebtn" data-mode="60">60-day</button>
+        <button type="button" class="modebtn" data-mode="90">90-day</button>
+      </span>
       <span class="sub" id="endNote"></span>
       <span class="spacer"></span>
       <button class="btn" id="todayBtn">Jump to Today</button>
@@ -229,7 +243,7 @@
     </div>
     <div>
       <div class="stats">
-        <div class="stat"><div class="num" id="sDays">0</div><div class="lbl">Days Done</div><div class="meta">of 90</div></div>
+        <div class="stat"><div class="num" id="sDays">0</div><div class="lbl">Days Done</div><div class="meta" id="sDaysMeta">of 90</div></div>
         <div class="stat"><div class="num" id="sStreak">0</div><div class="lbl">Best Streak</div><div class="meta">days in a row</div></div>
         <div class="stat"><div class="num" id="sToday">—</div><div class="lbl">Today Is</div><div class="meta" id="sTodayMeta">not started</div></div>
         <div class="stat"><div class="num" id="sPhase">—</div><div class="lbl">Current Phase</div><div class="meta" id="sPhaseMeta"></div></div>
@@ -638,17 +652,26 @@ const RESOURCES = [
 
 /* ---------- State ---------- */
 const STORE_KEY = "coae_tracker_v1";
-let state = {startDate:"", done:{}, notes:{}};
+let state = {startDate:"", done:{}, notes:{}, mode:90};
+
+/* Timeline modes — the same full curriculum, repackaged into 30 / 60 / 90 days. */
+const MODES = {
+  30:{days:30, hrs:"≈ 50 hrs/week"},
+  60:{days:60, hrs:"≈ 25 hrs/week"},
+  90:{days:90, hrs:"≈ 10–20 hrs/week"}
+};
+let DAYS = [];   // display days for the currently selected mode
 
 function load(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
-    if(raw){ state = Object.assign({startDate:"",done:{},notes:{}}, JSON.parse(raw)); }
+    if(raw){ state = Object.assign({startDate:"",done:{},notes:{},mode:90}, JSON.parse(raw)); }
   }catch(e){ /* ignore */ }
   if(!state.startDate){
     const t = new Date();
     state.startDate = t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");
   }
+  state.mode = MODES[state.mode] ? +state.mode : 90;
 }
 function save(){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){ /* ignore */ }
@@ -658,8 +681,43 @@ function save(){
 const TOTAL_TASKS = CURRICULUM.reduce((s,d)=>s+d.tasks.length,0);
 function weekOf(day){ return Math.ceil(day/7); }
 function taskId(day,i){ return day+"-"+i; }
-function dayDone(d){ return d.tasks.every((_,i)=>state.done[taskId(d.d,i)]); }
-function dayDoneCount(d){ return d.tasks.filter((_,i)=>state.done[taskId(d.d,i)]).length; }
+
+/* Split the 90 master curriculum days into N display days as evenly as possible:
+   90-day -> 1 master/day, 60-day -> alternating 1-2, 30-day -> 3 master/day.
+   Task IDs stay tied to the master day, so progress survives mode switches. */
+function buildDays(N){
+  const out = [];
+  const typeOrder = {setup:0,study:1,lab:2,review:3};
+  for(let k=0;k<N;k++){
+    const lo = Math.floor(k*90/N), hi = Math.floor((k+1)*90/N);
+    const masters = CURRICULUM.slice(lo,hi);
+    const tasks = [];
+    masters.forEach(m=>{ m.tasks.forEach((t,i)=>tasks.push({id:taskId(m.d,i), text:t})); });
+    const types = [...new Set(masters.map(m=>m.type))].sort((a,b)=>typeOrder[a]-typeOrder[b]);
+    out.push({
+      idx: k+1,
+      masters: masters,
+      tasks: tasks,
+      types: types,
+      milestones: masters.filter(m=>m.milestone).map(m=>m.milestone),
+      hrs: Math.round(masters.reduce((s,m)=>s+m.hrs,0)*2)/2,
+      noteKey: masters[0].d
+    });
+  }
+  return out;
+}
+function numWeeks(){ return Math.ceil(DAYS.length/7); }
+/* Theme a display week from the master content it actually covers. */
+function weekTheme(w){
+  const mw = [];
+  DAYS.filter(d=>weekOf(d.idx)===w).forEach(d=>d.masters.forEach(m=>mw.push(Math.ceil(m.d/7))));
+  if(!mw.length) return "";
+  mw.sort((a,b)=>a-b);
+  const mid = Math.min(13, Math.max(1, mw[Math.floor(mw.length/2)]));
+  return WEEK_THEMES[mid-1];
+}
+function dayDone(d){ return d.tasks.length>0 && d.tasks.every(t=>state.done[t.id]); }
+function dayDoneCount(d){ return d.tasks.filter(t=>state.done[t.id]).length; }
 
 function parseStart(){
   const p = (state.startDate||"").split("-");
@@ -688,23 +746,25 @@ function computeStats(){
   let doneTasks=0, doneDays=0;
   CURRICULUM.forEach(d=>{
     d.tasks.forEach((_,i)=>{ if(state.done[taskId(d.d,i)]) doneTasks++; });
-    if(dayDone(d)) doneDays++;
   });
-  // best streak of consecutive completed days
+  DAYS.forEach(dd=>{ if(dayDone(dd)) doneDays++; });
+  // best streak of consecutive completed display days
   let best=0,run=0;
-  CURRICULUM.forEach(d=>{ if(dayDone(d)){run++; if(run>best)best=run;} else run=0; });
+  DAYS.forEach(dd=>{ if(dayDone(dd)){run++; if(run>best)best=run;} else run=0; });
   return {doneTasks, doneDays, best};
 }
 
 /* ---------- Render: dashboard ---------- */
 function renderDashboard(){
   const st = computeStats();
+  const N = DAYS.length;
   const pct = TOTAL_TASKS ? Math.round(st.doneTasks/TOTAL_TASKS*100) : 0;
   document.getElementById("ringPct").textContent = pct+"%";
   document.getElementById("ringCap").textContent = st.doneTasks+" / "+TOTAL_TASKS+" tasks done";
   document.getElementById("ring").style.background =
     "conic-gradient(var(--green) "+(pct*3.6)+"deg, var(--card) "+(pct*3.6)+"deg)";
   document.getElementById("sDays").textContent = st.doneDays;
+  document.getElementById("sDaysMeta").textContent = "of "+N;
   document.getElementById("sStreak").textContent = st.best;
 
   const cd = currentPlanDay();
@@ -712,15 +772,16 @@ function renderDashboard(){
   const todayMeta = document.getElementById("sTodayMeta");
   if(cd<1){
     todayEl.textContent = "Pre"; todayMeta.textContent = "starts soon";
-  }else if(cd>90){
-    todayEl.textContent = "Done"; todayMeta.textContent = "past day 90";
+  }else if(cd>N){
+    todayEl.textContent = "Done"; todayMeta.textContent = "past day "+N;
   }else{
     todayEl.textContent = "Day "+cd; todayMeta.textContent = "Week "+weekOf(cd);
   }
 
-  // current phase
-  const phaseDay = Math.min(Math.max(cd,1),90);
-  const ph = PHASES.find(p=>phaseDay>=p.from && phaseDay<=p.to) || PHASES[0];
+  // current phase (mapped from the current display day's curriculum content)
+  const cdi = Math.min(Math.max(cd,1),N);
+  const md = DAYS[cdi-1].masters[0].d;
+  const ph = PHASES.find(p=>md>=p.from && md<=p.to) || PHASES[0];
   document.getElementById("sPhase").textContent = "P"+(PHASES.indexOf(ph)+1);
   document.getElementById("sPhaseMeta").textContent = ph.name;
   document.getElementById("sPhase").style.color = ph.color;
@@ -732,28 +793,29 @@ function renderDashboard(){
     pace.classList.add("on");
     pace.textContent = "Your plan begins on "+fmtDate(dateForDay(1))+". Get your lab environment ready.";
   }else{
-    const expected = Math.min(cd,90);
+    const expected = Math.min(cd,N);
     const delta = st.doneDays - expected;
     if(delta>=2){ pace.classList.add("ahead");
       pace.textContent = "Ahead of pace — "+st.doneDays+" days done vs. day "+expected+" expected. Nice work.";
     }else if(delta<=-3){ pace.classList.add("behind");
       pace.textContent = "Behind pace — "+st.doneDays+" days done vs. day "+expected+" expected. Consider a catch-up day or extending your timeline.";
     }else{ pace.classList.add("on");
-      pace.textContent = "On pace — "+st.doneDays+" days done, around day "+expected+" of 90.";
+      pace.textContent = "On pace — "+st.doneDays+" days done, around day "+expected+" of "+N+".";
     }
   }
 
   // week chart
   const wc = document.getElementById("weekChart");
   wc.innerHTML = "";
-  for(let w=1; w<=13; w++){
-    const days = CURRICULUM.filter(d=>weekOf(d.d)===w);
+  const nw = numWeeks();
+  for(let w=1; w<=nw; w++){
+    const wdays = DAYS.filter(d=>weekOf(d.idx)===w);
     let t=0,done=0;
-    days.forEach(d=>{ d.tasks.forEach((_,i)=>{ t++; if(state.done[taskId(d.d,i)])done++; }); });
+    wdays.forEach(d=>{ d.tasks.forEach(tk=>{ t++; if(state.done[tk.id])done++; }); });
     const p = t? Math.round(done/t*100):0;
     const col = document.createElement("div");
     col.className = "wbar-col";
-    col.title = "Week "+w+": "+WEEK_THEMES[w-1]+" — "+p+"%";
+    col.title = "Week "+w+": "+weekTheme(w)+" — "+p+"%";
     col.innerHTML = '<div class="wbar-track"><div class="wbar-fill" style="height:'+p+'%"></div></div>'+
                     '<div class="wbar-lbl">W'+w+'</div>';
     wc.appendChild(col);
@@ -784,15 +846,18 @@ function renderPlan(){
   const wrap = document.getElementById("weeks");
   const hideDone = document.getElementById("hideDone").checked;
   const cd = currentPlanDay();
-  const curWeek = (cd>=1&&cd<=90)? weekOf(cd) : 1;
+  const N = DAYS.length;
+  const curWeek = (cd>=1&&cd<=N)? weekOf(cd) : 1;
+  const nw = numWeeks();
   wrap.innerHTML = "";
 
-  for(let w=1; w<=13; w++){
-    const days = CURRICULUM.filter(d=>weekOf(d.d)===w);
+  for(let w=1; w<=nw; w++){
+    const days = DAYS.filter(d=>weekOf(d.idx)===w);
+    if(!days.length) continue;
     let t=0,done=0,hrs=0;
-    days.forEach(d=>{ hrs+=d.hrs; d.tasks.forEach((_,i)=>{ t++; if(state.done[taskId(d.d,i)])done++; }); });
+    days.forEach(d=>{ hrs+=d.hrs; d.tasks.forEach(tk=>{ t++; if(state.done[tk.id])done++; }); });
     const p = t?Math.round(done/t*100):0;
-    const first = days[0].d, last = days[days.length-1].d;
+    const first = days[0].idx, last = days[days.length-1].idx;
 
     const week = document.createElement("div");
     week.className = "week" + ((w===curWeek)?" open":"");
@@ -803,8 +868,8 @@ function renderPlan(){
     head.innerHTML =
       '<span class="wk-chevron">&#9654;</span>'+
       '<span class="wk-num">WEEK '+w+'</span>'+
-      '<span class="wk-theme">'+esc(WEEK_THEMES[w-1])+'</span>'+
-      '<span class="wk-days">Days '+first+'–'+last+' · ~'+hrs+'h</span>'+
+      '<span class="wk-theme">'+esc(weekTheme(w))+'</span>'+
+      '<span class="wk-days">Days '+first+'–'+last+' · ~'+(Math.round(hrs*2)/2)+'h</span>'+
       '<span class="wk-spacer"></span>'+
       '<span class="wk-mini"><span class="wk-mini-fill" style="width:'+p+'%"></span></span>'+
       '<span class="wk-pct">'+p+'%</span>';
@@ -829,41 +894,42 @@ function renderPlan(){
   }
 }
 
-function renderDay(d, cd){
+function renderDay(dd, cd){
   const card = document.createElement("div");
-  const isDone = dayDone(d);
-  card.className = "day" + (isDone?" done":"") + ((d.d===cd)?" today":"");
-  card.id = "day-"+d.d;
+  const isDone = dayDone(dd);
+  card.className = "day" + (isDone?" done":"") + ((dd.idx===cd)?" today":"");
+  card.id = "day-"+dd.idx;
 
-  const dt = dateForDay(d.d);
-  const typeLabel = {setup:"Setup",study:"Study",lab:"Lab",review:"Review"}[d.type]||d.type;
+  const dt = dateForDay(dd.idx);
+  const typeLabel = {setup:"Setup",study:"Study",lab:"Lab",review:"Review"};
+  const title = dd.masters.map(m=>esc(m.title)).join(" · ");
+  const typeChips = dd.types.map(tp=>'<span class="chip type-'+tp+'">'+(typeLabel[tp]||tp)+'</span>').join("");
 
   let html =
     '<div class="day-head">'+
-      '<span class="day-badge">DAY '+d.d+(d.d===cd?' · TODAY':'')+'</span>'+
-      '<span class="day-title">'+esc(d.title)+'</span>'+
-      '<span class="chip type-'+d.type+'">'+typeLabel+'</span>'+
-      '<span class="chip chip-hrs">~'+d.hrs+'h</span>'+
+      '<span class="day-badge">DAY '+dd.idx+(dd.idx===cd?' · TODAY':'')+'</span>'+
+      '<span class="day-title">'+title+'</span>'+
+      typeChips+
+      '<span class="chip chip-hrs">~'+dd.hrs+'h</span>'+
       (dt?'<span class="day-date">'+fmtDate(dt)+'</span>':'')+
     '</div>';
 
-  if(d.milestone){
-    html += '<div class="milestone">&#9733; Milestone: '+esc(d.milestone)+'</div>';
-  }
+  dd.milestones.forEach(ms=>{
+    html += '<div class="milestone">&#9733; Milestone: '+esc(ms)+'</div>';
+  });
 
   html += '<ul class="tasks">';
-  d.tasks.forEach((tk,i)=>{
-    const id = taskId(d.d,i);
-    const ck = state.done[id] ? " checked" : "";
-    html += '<li><input type="checkbox" id="ck-'+id+'" data-id="'+id+'"'+ck+'>'+
-            '<label for="ck-'+id+'">'+esc(tk)+'</label></li>';
+  dd.tasks.forEach(tk=>{
+    const ck = state.done[tk.id] ? " checked" : "";
+    html += '<li><input type="checkbox" id="ck-'+tk.id+'" data-id="'+tk.id+'"'+ck+'>'+
+            '<label for="ck-'+tk.id+'">'+esc(tk.text)+'</label></li>';
   });
   html += '</ul>';
 
-  const note = state.notes[d.d] || "";
+  const note = state.notes[dd.noteKey] || "";
   html += '<details class="notes-wrap'+(note?' has-note':'')+'">'+
             '<summary>Notes &amp; journal'+(note?' (saved)':'')+'</summary>'+
-            '<textarea data-day="'+d.d+'" placeholder="What did you learn? Payloads that worked, things to revisit, questions...">'+esc(note)+'</textarea>'+
+            '<textarea data-note="'+dd.noteKey+'" placeholder="What did you learn? Payloads that worked, things to revisit, questions...">'+esc(note)+'</textarea>'+
           '</details>';
 
   card.innerHTML = html;
@@ -873,16 +939,16 @@ function renderDay(d, cd){
       if(cb.checked) state.done[cb.dataset.id]=true;
       else delete state.done[cb.dataset.id];
       save();
-      const nowDone = dayDone(d);
+      const nowDone = dayDone(dd);
       card.classList.toggle("done", nowDone);
       renderDashboard();
-      updateWeekHeader(weekOf(d.d));
+      updateWeekHeader(weekOf(dd.idx));
     });
   });
   const ta = card.querySelector("textarea");
   ta.addEventListener("input",()=>{
     const v = ta.value;
-    if(v.trim()) state.notes[d.d]=v; else delete state.notes[d.d];
+    if(v.trim()) state.notes[dd.noteKey]=v; else delete state.notes[dd.noteKey];
     save();
   });
   return card;
@@ -891,9 +957,9 @@ function renderDay(d, cd){
 function updateWeekHeader(w){
   const week = document.querySelector('.week[data-week="'+w+'"]');
   if(!week) return;
-  const days = CURRICULUM.filter(d=>weekOf(d.d)===w);
+  const days = DAYS.filter(d=>weekOf(d.idx)===w);
   let t=0,done=0;
-  days.forEach(d=>{ d.tasks.forEach((_,i)=>{ t++; if(state.done[taskId(d.d,i)])done++; }); });
+  days.forEach(d=>{ d.tasks.forEach(tk=>{ t++; if(state.done[tk.id])done++; }); });
   const p = t?Math.round(done/t*100):0;
   week.querySelector(".wk-mini-fill").style.width = p+"%";
   week.querySelector(".wk-pct").textContent = p+"%";
@@ -936,6 +1002,14 @@ document.getElementById("startDate").addEventListener("change",e=>{
   state.startDate = e.target.value;
   save(); renderAll();
 });
+document.querySelectorAll(".modebtn").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const m = +btn.dataset.mode;
+    if(m===state.mode) return;
+    state.mode = m;
+    save(); renderAll();
+  });
+});
 document.getElementById("hideDone").addEventListener("change",renderPlan);
 document.getElementById("expandAll").addEventListener("click",()=>{
   document.querySelectorAll(".week").forEach(w=>w.classList.add("open"));
@@ -945,7 +1019,7 @@ document.getElementById("collapseAll").addEventListener("click",()=>{
 });
 document.getElementById("todayBtn").addEventListener("click",()=>{
   const cd = currentPlanDay();
-  const target = Math.min(Math.max(cd,1),90);
+  const target = Math.min(Math.max(cd,1),DAYS.length);
   document.querySelector('.tab[data-tab="plan"]').click();
   const week = document.querySelector('.week[data-week="'+weekOf(target)+'"]');
   if(week) week.classList.add("open");
@@ -970,7 +1044,7 @@ document.getElementById("importFile").addEventListener("change",e=>{
   r.onload = ()=>{
     try{
       const obj = JSON.parse(r.result);
-      state = Object.assign({startDate:"",done:{},notes:{}}, obj);
+      state = Object.assign({startDate:"",done:{},notes:{},mode:90}, obj);
       save(); init();
       alert("Backup imported successfully.");
     }catch(err){ alert("Could not read that file — make sure it is a tracker backup."); }
@@ -979,7 +1053,7 @@ document.getElementById("importFile").addEventListener("change",e=>{
 });
 document.getElementById("resetBtn").addEventListener("click",()=>{
   if(confirm("Reset all progress, notes, and start date? This cannot be undone. Consider exporting a backup first.")){
-    state = {startDate:"",done:{},notes:{}};
+    state = {startDate:"",done:{},notes:{},mode:90};
     try{ localStorage.removeItem(STORE_KEY); }catch(e){}
     init();
   }
@@ -987,9 +1061,14 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
 
 /* ---------- Init ---------- */
 function renderAll(){
+  DAYS = buildDays(state.mode);
   document.getElementById("startDate").value = state.startDate;
-  const endDt = dateForDay(90);
-  document.getElementById("endNote").textContent = endDt ? "Plan ends "+fmtDate(endDt) : "";
+  document.querySelectorAll(".modebtn").forEach(b=>{
+    b.classList.toggle("active", +b.dataset.mode===state.mode);
+  });
+  const endDt = dateForDay(DAYS.length);
+  document.getElementById("endNote").textContent =
+    (endDt ? "Plan ends "+fmtDate(endDt) : "") + "  ·  " + MODES[state.mode].hrs;
   renderDashboard();
   renderPlan();
 }
