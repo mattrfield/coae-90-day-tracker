@@ -4,7 +4,7 @@ An interactive, offline-friendly study tracker for the **Hack The Box Certified 
 
 It lays out the full curriculum of the [AI Red Teamer Job-Role Path](https://academy.hackthebox.com/path/preview/ai-red-teamer) — all 12 modules / 230 sections — and tracks your progress, notes, and pace as you go. Pick a **30-, 60-, or 90-day timeline** to match the time you have: the curriculum stays the same, just repackaged into a denser or gentler schedule. The whole thing is a single self-contained HTML file: no build step, no dependencies, no internet required.
 
-![The COAE study tracker in its 30-, 60-, and 90-day timeline modes](screenshot.png)
+![The COAE Study Tracker running a 60-day plan, with progress and notes filled in](screenshot.png)
 
 ## Features
 
