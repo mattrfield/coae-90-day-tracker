@@ -1,4 +1,4 @@
-# COAE 90-Day Study Tracker
+# COAE Study Tracker
 
 An interactive, offline-friendly study tracker for the **Hack The Box Certified Offensive AI Expert (HTB COAE)** certification.
 
@@ -21,7 +21,7 @@ It lays out the full curriculum of the [AI Red Teamer Job-Role Path](https://aca
    ```bash
    git clone https://github.com/mattrfield/coae-study-tracker.git
    ```
-2. Open `coae-90-day-tracker.html` in any modern browser (double-click it, or `File > Open`).
+2. Open `coae-study-tracker.html` in any modern browser (double-click it, or `File > Open`).
 3. Choose your **timeline** (30, 60, or 90 days) and set your **start date** at the top — every day's calendar date and your pace indicator are computed from them.
 4. Tick tasks as you complete them. A day turns green when all its tasks are done.
 
